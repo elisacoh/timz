@@ -1,21 +1,35 @@
+# app/db/database.py
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
-import os
-from dotenv import load_dotenv
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
+from app.core.config import get_settings
 
-#Load env variables from .env
-load_dotenv()
+settings = get_settings()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Create engine
+engine = create_engine(
+    settings.database_url,
+    echo=False,
+    future=True,
+    pool_pre_ping=True,         # prevent broken connections
+    pool_size=10,               # default varies per DB
+    max_overflow=20,            # additional connections
+)
 
-engine = create_engine(DATABASE_URL)
+# Create session factory
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    future=True
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
+# Base for declarative models
 Base = declarative_base()
 
-def get_db():
+
+# Dependency for route injection
+def get_db() -> Session:
     db = SessionLocal()
     try:
         yield db

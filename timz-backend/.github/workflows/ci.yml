@@ -2,11 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [dev, main]
   pull_request:
-    branches: [ main, dev ]
+    branches: [dev, main]
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
   test:
     runs-on: ubuntu-latest
 
@@ -33,3 +35,20 @@ jobs:
       run: |
         source venv/bin/activate
         make test
+
+  services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: your_password
+          POSTGRES_DB: timzdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+

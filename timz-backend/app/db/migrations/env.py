@@ -21,7 +21,7 @@ config.set_main_option("sqlalchemy.url", url)  # Override Alembic config file
 
 # Dynamically import all models from app.db.models
 models_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models"))
-module_prefix = "app.db.models."
+module_prefix = "app.models."
 
 for filename in os.listdir(models_path):
     if filename.endswith(".py") and filename != "__init__.py":

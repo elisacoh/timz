@@ -1,0 +1,2 @@
+- add table ou possibilite de plusieurs adresses pr le client (+ favorite/par defaut et autres adresses selectiom)
+- ajouter score point fro scrolling clicking etc... (for clients)

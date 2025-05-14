@@ -1,55 +1,103 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.utils.auth import hash_password
-from app.services.auth import create_access_token, authenticate_user
-from app.dependencies.auth import get_current_user
 from app.db.database import get_db
-from app.models.user import User
-from app.schemas.users import UserCreate, UserResponse
-from app.services.auth import decode_token
+from app.models.user import User, ProfileClient, ProfilePro
+from app.schemas.auth import SignupRequest, SignupResponse, Token
+from app.schemas.users import UserRole, UserDetailsOut
+from app.utils.auth import get_password_hash, create_access_token
+from app.services.auth import authenticate_user
+from app.dependencies.auth import get_current_user, require_roles
+from uuid import uuid4
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
+from fastapi.security import OAuth2PasswordRequestForm
+from uuid import UUID
 
 
 router = APIRouter()
 
-@router.post("/signup", response_model=UserResponse)
-def signup(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Create a new user"""
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+def signup(data: SignupRequest, db: Session = Depends(get_db)):
+    print("📥 signup route called")
+    existing_user = db.query(User).filter(User.email == data.email).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
+        raise HTTPException(status_code=409, detail="Email already registered")
+    print("✅ checked if user exists")
     new_user = User(
-        email=user_data.email,
-        hashed_password=hash_password(user_data.password),
-        name=user_data.name,
-        phone=user_data.phone,
-        profile_image=user_data.profile_image,
-        role="user",
-        is_active=True
+        id=uuid4(),
+        email=data.email,
+        full_name=data.full_name,
+        hashed_password=get_password_hash(data.password),
+        phone=data.phone,
+        roles=data.roles,
+        is_active=True,
+        token_version=0,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
     )
+
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    db.flush()  # Required to get the user_id for FK creation
 
-@router.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
-    """Login user and return access token"""
-    user = authenticate_user(db, email, password)
+    if UserRole.client in data.roles:
+        client_profile = ProfileClient(
+            user_id=new_user.id,
+            phone=data.phone,
+            address=data.address.dict() if data.address else None
+        )
+        db.add(client_profile)
+    print("🧱 user created")
+    if UserRole.pro in data.roles:
+        pro_profile = ProfilePro(
+            user_id=new_user.id,
+            business_name=data.business_name,
+            website=data.website,
+            address=data.address.dict() if data.address else None
+
+        )
+        db.add(pro_profile)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error while creating user")
+    print("💾 committed")
+
+
+    access_token = create_access_token(
+        user_id=new_user.id,
+        role=new_user.roles,
+        token_version=new_user.token_version
+    )
+
+    return SignupResponse(
+        access_token=access_token,
+        user_id=new_user.id,
+        roles=new_user.roles
+    )
+@router.post("/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm=Depends(), db:Session = Depends(get_db)):
+    user=authenticate_user(db, form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    access_token = create_access_token({"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(
+        user_id=user.id,
+        role=user.roles,
+        token_version=user.token_version
+    )
 
-@router.get("/me", response_model=UserResponse)
+    return Token(access_token=access_token, user_id=user.id, roles=user.roles)
+
+@router.get("/me", response_model=UserDetailsOut)
 def get_me(current_user: User = Depends(get_current_user)):
-    """Get current logged-in user"""
     return current_user
 
-@router.post("/refresh")
-def refresh_token(token: str):
-    """Refresh expired token (optional)"""
-    payload = decode_token(token)
-    new_token = create_access_token({"sub": payload["sub"]})
-    return {"access_token": new_token, "token_type": "bearer"}
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.token_version += 1
+    db.commit()
+    return
+
+

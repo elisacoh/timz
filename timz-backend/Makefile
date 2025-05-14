@@ -12,3 +12,6 @@ lint:
 	flake8 app tests
 
 check: lint test
+
+migrate:
+	alembic upgrade head

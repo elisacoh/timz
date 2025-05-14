@@ -9,9 +9,17 @@ from app.models.user import User
 from app.utils.auth import verify_password
 from dotenv import load_dotenv
 
+from app.core.config import get_settings
+
+settings = get_settings()
+SECRET_KEY = settings.jwt_secret
+if not isinstance(SECRET_KEY, str) or not SECRET_KEY:
+    raise RuntimeError(" JWT_SECRET not set correctly in environment")
+
 load_dotenv()
 
-SECRET_KEY = os.getenv("JWT_SECRET")
+
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

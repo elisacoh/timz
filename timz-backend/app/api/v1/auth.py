@@ -88,7 +88,13 @@ def login(form_data: OAuth2PasswordRequestForm=Depends(), db:Session = Depends(g
         token_version=user.token_version
     )
 
-    return Token(access_token=access_token, user_id=user.id, roles=user.roles)
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": str(user.id),
+        "roles": user.roles,
+    }
+
 
 @router.get("/me", response_model=UserDetailsOut)
 def get_me(current_user: User = Depends(get_current_user)):

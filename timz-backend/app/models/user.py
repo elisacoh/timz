@@ -72,6 +72,9 @@ class ProfilePro(Base):
 
     user = relationship("User", back_populates="profile_pro")
 
+    services = relationship("Service", back_populates="pro")
+    service_groups = relationship("ServiceGroup", back_populates="pro")  # si tu veux aussi accéder au groupe
+
     def __repr__(self):
         return f"<ProProfile user_id={self.user_id}>"
 

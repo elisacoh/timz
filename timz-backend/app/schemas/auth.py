@@ -7,7 +7,8 @@ from app.schemas.users import UserRole, Address
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
-
+    user_id: UUID
+    roles: List[UserRole]
 
 class JWTPayload(BaseModel):
     sub: UUID

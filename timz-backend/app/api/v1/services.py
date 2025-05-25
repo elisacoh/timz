@@ -6,7 +6,7 @@ from typing import List, Optional
 from app.db.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.models.service import Service, ServiceGroup, Category
+from app.models.service import Service, ServiceGroup, ServiceCategory
 from app.schemas.service import ServiceCreate, ServiceOut, ServiceGroupOut, ServiceGroupCreate, CategoryOut, CategoryCreate
 
 router = APIRouter()
@@ -109,10 +109,10 @@ def create_category(data: CategoryCreate, db: Session = Depends(get_db), current
     if "admin" not in current_user.roles:
         raise HTTPException(status_code=403, detail="Only admins can create categories")
 
-    if db.query(Category).filter(Category.name == data.name).first():
+    if db.query(ServiceCategory).filter(ServiceCategory.name == data.name).first():
         raise HTTPException(status_code=400, detail="Category already exists")
 
-    category = Category(name=data.name)
+    category = ServiceCategory(name=data.name)
     db.add(category)
     db.commit()
     db.refresh(category)
@@ -120,4 +120,4 @@ def create_category(data: CategoryCreate, db: Session = Depends(get_db), current
 
 @router.get("/categories", response_model=list[CategoryOut])
 def list_categories(db: Session = Depends(get_db)):
-    return db.query(Category).order_by(Category.name).all()
+    return db.query(ServiceCategory).order_by(ServiceCategory.name).all()

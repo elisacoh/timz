@@ -105,7 +105,7 @@ def list_users(
 ):
     query = db.query(User)
     if role:
-        query = query.filter(User.roles.contains([role]))  # PostgreSQL ARRAY filtering
+        query = query.filter(User.roles.any(role))  # PostgreSQL ARRAY filterin, fonctionne uniquement ac ARRAY(String) et pas JSONB.
     return query.all()
 
 
